@@ -420,5 +420,4 @@ Implemented:
 ---
 
 ## License
-
 This project is intended for educational and academic purposes.
