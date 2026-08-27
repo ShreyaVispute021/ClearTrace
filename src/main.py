@@ -90,11 +90,60 @@ def compile_source(source):
 
     else:
 
+        print()
         print(f"✗ Found {len(errors)} error(s)")
         print()
 
+        # Display detailed diagnostics
         for error in errors:
             print(diagnostics.report(error))
+
+        # --------------------------------
+        # Diagnostic Summary
+        # --------------------------------
+
+        print("========================================")
+        print("           DIAGNOSTIC SUMMARY")
+        print("========================================")
+        print()
+
+        print(f"Errors: {len(errors)}")
+        print()
+
+        counts = {}
+
+        for error in errors:
+
+            error_type = error["type"]
+
+            if error_type not in counts:
+                counts[error_type] = 0
+
+            counts[error_type] += 1
+
+        names = {
+            "MISSING_SEMICOLON": "Missing semicolon",
+            "UNDECLARED_VARIABLE": "Undeclared variable",
+            "DUPLICATE_DECLARATION": "Duplicate declaration",
+            "TYPE_MISMATCH": "Type mismatch",
+            "UNEXPECTED_TOKEN": "Unexpected token"
+        }
+
+        codes = {
+            "MISSING_SEMICOLON": "E001",
+            "UNDECLARED_VARIABLE": "E002",
+            "DUPLICATE_DECLARATION": "E003",
+            "TYPE_MISMATCH": "E004",
+            "UNEXPECTED_TOKEN": "E005"
+        }
+
+        for error_type, count in counts.items():
+
+            print(
+                f"{codes.get(error_type, 'E???')}  "
+                f"{names.get(error_type, error_type)}"
+                f"  {count}"
+            )
 
 
 def main():

@@ -119,14 +119,17 @@ class DiagnosticEngine:
 
         source_line = self.get_source_line(line)
 
+        left_article = "an" if left_type[0] in "aeiou" else "a"
+        right_article = "an" if right_type[0] in "aeiou" else "a"
+
         return f"""Error {code}: Type mismatch
   --> line {line}, column {column}
 
-    {source_line}
-    {self.make_caret(column)}
+        {source_line}
+        {self.make_caret(column)}
 
   The '{operator}' operator cannot combine
-  a {left_type} and a {right_type}.
+  {left_article} {left_type} and {right_article} {right_type}.
 
   Suggestion: Use compatible types with the '{operator}' operator.
 """
