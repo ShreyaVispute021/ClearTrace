@@ -42,7 +42,22 @@ class JavaScriptAdapter(LanguageAdapter):
         except Exception:
             pass
 
-        if "Unexpected token" in output:
+        if "missing ) after argument list" in output:
+
+            message = "Missing closing ')'."
+
+            explanation = (
+                "An opening parenthesis '(' does not have "
+                "a matching closing parenthesis ')'."
+            )
+
+            suggestion = (
+                "Add ')' to close the function call."
+            )
+
+            confidence = 98
+
+        elif "Unexpected token" in output:
 
             message = "Unexpected token."
 
@@ -65,7 +80,9 @@ class JavaScriptAdapter(LanguageAdapter):
                 "Node.js could not parse this JavaScript source file."
             )
 
-            suggestion = "Check the syntax near this line."
+            suggestion = (
+                "Check the syntax near the reported line."
+            )
 
             confidence = 75
 

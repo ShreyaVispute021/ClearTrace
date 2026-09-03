@@ -45,7 +45,12 @@ class CppAdapter(LanguageAdapter):
 
         # Classify common C++ errors
 
-        if "expected ';'" in output:
+        if (
+            "expected ';'" in output
+            or "expected ',' or ';' before" in output
+            or "expected ';' before" in output
+            or "expected ‘;’" in output
+        ):
 
             message = "Missing semicolon."
 
