@@ -3,10 +3,14 @@ from adapters.cpp_adapter import CppAdapter
 from adapters.java_adapter import JavaAdapter
 from adapters.javascript_adapter import JavaScriptAdapter
 
+from language_detector import LanguageDetector
+
 
 class ClearTraceAnalyzer:
 
     def __init__(self):
+
+        self.detector = LanguageDetector()
 
         self.adapters = [
             PythonAdapter(),
@@ -26,13 +30,14 @@ class ClearTraceAnalyzer:
 
     def analyze(self, filename):
 
+        language = self.detector.detect(filename)
+
         adapter = self.detect_adapter(filename)
 
         if adapter is None:
 
             raise ValueError(
-                "Unsupported language. "
-                "Supported languages: Python, C++, Java, JavaScript."
+                f"Language '{language}' is not currently supported."
             )
 
         return adapter.analyze(filename)

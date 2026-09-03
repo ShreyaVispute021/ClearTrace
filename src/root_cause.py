@@ -1,27 +1,25 @@
 class RootCauseAnalyzer:
 
-    def analyze(self, diagnostics):
+    def find_root_cause(self, diagnostics):
 
         if not diagnostics:
             return None
 
-        if len(diagnostics) == 1:
-            return diagnostics[0]
-
-        # The earliest syntax error is often
-        # a possible root cause.
-
-        sorted_errors = sorted(
+        ordered = sorted(
             diagnostics,
-            key=lambda error: (
-                error.line,
-                error.column
-            )
+            key=lambda d: (d.line, d.column)
         )
 
-        first = sorted_errors[0]
+        return ordered[0]
 
-        return {
-            "root_cause": first,
-            "related_errors": sorted_errors[1:]
-        }
+    def find_related_errors(self, diagnostics):
+
+        if len(diagnostics) <= 1:
+            return []
+
+        ordered = sorted(
+            diagnostics,
+            key=lambda d: (d.line, d.column)
+        )
+
+        return ordered[1:]

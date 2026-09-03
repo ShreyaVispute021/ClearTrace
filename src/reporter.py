@@ -5,7 +5,7 @@ class Reporter:
         print()
         print("╔══════════════════════════════════════════╗")
         print("║             CLEARTRACE                   ║")
-        print("║   Human-Readable Diagnostics             ║")
+        print("║   Universal Diagnostic Analyzer          ║")
         print("╚══════════════════════════════════════════╝")
 
         if not diagnostics:
@@ -14,12 +14,20 @@ class Reporter:
             print("✓ No errors found.")
             print("  Compilation / validation successful.")
             print()
+
             return
 
-        for diagnostic in diagnostics:
+        print()
+        print(f"Detected {len(diagnostics)} error(s).")
+
+        for index, diagnostic in enumerate(
+            diagnostics,
+            start=1
+        ):
 
             print()
             print("──────────────────────────────────────────")
+            print(f"Error #{index}")
             print(f"Language: {diagnostic.language}")
             print(f"Severity: {diagnostic.severity}")
             print(f"Category: {diagnostic.category}")
@@ -31,9 +39,14 @@ class Reporter:
                 f"{diagnostic.source_line}"
             )
 
+            spaces = max(
+                0,
+                diagnostic.column - 1
+            )
+
             print(
                 f"    │ "
-                f"{'^' * max(1, diagnostic.column)}"
+                f"{' ' * spaces}^"
             )
 
             print()
@@ -49,9 +62,45 @@ class Reporter:
             print(f"  {diagnostic.suggestion}")
 
             print()
-            print(f"Confidence: {diagnostic.confidence}%")
+            print(
+                f"Confidence: "
+                f"{diagnostic.confidence}%"
+            )
 
         print()
         print("──────────────────────────────────────────")
-        print(f"Total errors: {len(diagnostics)}")
+
+        if len(diagnostics) > 1:
+
+            print()
+            print("ROOT-CAUSE ANALYSIS")
+
+            first = min(
+                diagnostics,
+                key=lambda d: (
+                    d.line,
+                    d.column
+                )
+            )
+
+            print(
+                f"  Earliest detected issue: "
+                f"{first.code}"
+            )
+
+            print(
+                f"  Line {first.line}: "
+                f"{first.message}"
+            )
+
+            print()
+            print(
+                "  Recommendation:"
+            )
+
+            print(
+                "  Fix the earliest error first, "
+                "then re-run ClearTrace."
+            )
+
         print()

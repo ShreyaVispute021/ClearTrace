@@ -3,25 +3,19 @@ import difflib
 
 class SuggestionEngine:
 
-    def find_similar(self, name, known_names):
+    def suggest(self, unknown_name, known_names):
 
-        matches = difflib.get_close_matches(
-            name,
-            known_names,
-            n=3,
-            cutoff=0.6
-        )
-
-        return matches
-
-    def suggest(self, name, known_names):
-
-        matches = self.find_similar(
-            name,
-            known_names
-        )
-
-        if not matches:
+        if not known_names:
             return None
 
-        return matches[0]
+        matches = difflib.get_close_matches(
+            unknown_name,
+            known_names,
+            n=1,
+            cutoff=0.55
+        )
+
+        if matches:
+            return matches[0]
+
+        return None
