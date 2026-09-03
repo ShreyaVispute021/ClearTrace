@@ -24,9 +24,7 @@ class SemanticAnalyzer:
         if not isinstance(statement, LetDeclaration):
             return
 
-        # --------------------------------
         # Check duplicate declaration
-        # --------------------------------
 
         if statement.name in self.symbols:
 
@@ -37,43 +35,31 @@ class SemanticAnalyzer:
                 "column": statement.column
             })
 
-            # Do not add the duplicate to symbol table.
-            # But we still analyze its value once.
             self.get_type(statement.value)
 
             return
 
-        # --------------------------------
         # Analyze the value
-        # --------------------------------
 
         value_type = self.get_type(statement.value)
 
-        # --------------------------------
         # Add variable to symbol table
-        # --------------------------------
 
         self.symbols[statement.name] = value_type
 
     def get_type(self, node):
 
-        # --------------------------------
         # Integer
-        # --------------------------------
 
         if isinstance(node, NumberLiteral):
             return "integer"
 
-        # --------------------------------
         # String
-        # --------------------------------
 
         if isinstance(node, StringLiteral):
             return "string"
 
-        # --------------------------------
         # Identifier
-        # --------------------------------
 
         if isinstance(node, Identifier):
 
@@ -90,17 +76,13 @@ class SemanticAnalyzer:
 
             return self.symbols[node.name]
 
-        # --------------------------------
         # Binary expression
-        # --------------------------------
 
         if isinstance(node, BinaryExpression):
 
             left_type = self.get_type(node.left)
             right_type = self.get_type(node.right)
 
-            # If either side is already invalid,
-            # don't generate another misleading error.
             if left_type == "unknown" or right_type == "unknown":
                 return "unknown"
 

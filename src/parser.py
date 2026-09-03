@@ -140,11 +140,6 @@ class Parser:
                 "column": previous_token.column
             })
 
-            # IMPORTANT:
-            # Do not throw away the declaration.
-            # We keep the AST node so semantic analysis
-            # can continue correctly.
-
             return LetDeclaration(
                 name=name_token.value,
                 value=value,
