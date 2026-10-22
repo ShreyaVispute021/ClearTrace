@@ -1,5 +1,6 @@
 from collections import Counter
 from error_classifier import ErrorClassifier
+from root_cause import RootCauseAnalyzer
 
 
 class Reporter:
@@ -93,37 +94,18 @@ class Reporter:
         print("──────────────────────────────────────────")
 
         if len(diagnostics) > 1:
-
             print()
-            print("ROOT-CAUSE ANALYSIS")
-
-            first = min(
-                diagnostics,
-                key=lambda d: (
-                    d.line,
-                    d.column
-                )
-            )
-
-            print(
-                f"  Earliest detected issue: "
-                f"{first.code}"
-            )
-
-            print(
-                f"  Line {first.line}: "
-                f"{first.message}"
-            )
-
-            print()
-            print(
-                "  Recommendation:"
-            )
-
-            print(
-                "  Fix the earliest error first, "
-                "then re-run ClearTrace."
-            )
+            print("ROOT-CAUSE TRIAGE (HEURISTIC)")
+            triage = RootCauseAnalyzer().analyze(diagnostics)
+            first = triage["root_cause"]
+            if first is not None:
+                print(f"  Highest-priority diagnostic: {first.code}")
+                print(f"  Line {first.line}, column {first.column}: {first.message}")
+                print("  Ranking considers severity, source location and confidence.")
+                print("  Note: this is a probable starting point, not proof of causality.")
+            if len(triage["diagnostics"]) < len(diagnostics):
+                print(f"  Duplicate diagnostics suppressed: {len(diagnostics) - len(triage['diagnostics'])}")
+            print("  Recommendation: address the prioritized issue and re-run ClearTrace.")
 
         self.print_summary(diagnostics)
         print()

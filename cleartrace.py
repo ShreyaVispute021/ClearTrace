@@ -25,95 +25,60 @@ def print_banner():
 
 
 def run_analysis(filename, auto_fix=False):
-
     analyzer = ClearTraceAnalyzer()
     reporter = Reporter()
     fixer = FixEngine()
 
     try:
-
         diagnostics = analyzer.analyze(filename)
-
         reporter.report(diagnostics)
-
         if not diagnostics:
             return
+        if not auto_fix:
+            print("\nTip: Use --fix to attempt only explicitly supported high-confidence fixes.")
+            return
 
-        if auto_fix:
+        eligible = [d for d in diagnostics if d.confidence >= 95]
+        if not eligible:
+            print("\nNo diagnostics meet the automatic-fix confidence threshold.")
+            return
 
-            print()
-            print("╔════════════════════════════════════════════╗")
-            print("║           AUTOMATIC FIX MODE               ║")
-            print("╚════════════════════════════════════════════╝")
-
-            for diagnostic in diagnostics:
-
-                if diagnostic.confidence >= 95:
-
-                    print()
-                    print(
-                        f"Applying {diagnostic.code}..."
-                    )
-
-                    fixed = fixer.apply_fix(
-                        filename,
-                        diagnostic
-                    )
-
-                    if fixed:
-                        print("✓ Fix applied.")
-                    else:
-                        print("⚠ Fix could not be applied.")
-
+        print("\nAUTOMATIC FIX MODE")
+        # One backup protects the original file if the repair does not verify.
+        fixer.create_backup(filename)
+        applied = 0
+        try:
+            for diagnostic in eligible:
+                print(f"\nProposing fix for {diagnostic.code} at line {diagnostic.line}...")
+                if fixer.apply_fix(filename, diagnostic):
+                    applied += 1
+                    print("  Supported edit applied.")
                 else:
+                    print("  No safe, supported edit matched; skipped.")
 
-                    print()
-                    print(
-                        f"⚠ Skipping {diagnostic.code}"
-                    )
-                    print(
-                        f"  Confidence: "
-                        f"{diagnostic.confidence}%"
-                    )
+            if applied == 0:
+                fixer.restore_backup(filename)
+                print("\nNo changes applied; original file preserved.")
+                return
 
-            print()
-            print("Rechecking source...")
-
+            print("\nRechecking source with the native toolchain...")
             remaining = analyzer.analyze(filename)
-
             if not remaining:
-
-                print()
-                print("✓ VERIFIED")
-                print("  All detected errors were resolved.")
-
+                fixer.discard_backup(filename)
+                print("\n✓ VERIFIED: the native validation check passed.")
+                print("  Note: this verifies the compiler/interpreter check, not runtime behavior.")
             else:
-
-                print()
-                print(
-                    f"⚠ {len(remaining)} "
-                    f"error(s) remain."
-                )
-
-        else:
-
-            print()
-            print(
-                "Tip: Use --fix for automatic "
-                "high-confidence corrections."
-            )
-
+                fixer.restore_backup(filename)
+                print(f"\n✗ Verification failed ({len(remaining)} diagnostic(s) remain).")
+                print("  Original source restored from backup.")
+                reporter.report(remaining)
+        except Exception:
+            fixer.restore_backup(filename)
+            raise
     except FileNotFoundError:
-
-        print(
-            f"✗ File not found: {filename}"
-        )
-
+        print(f"✗ File not found: {filename}")
     except Exception as error:
-
-        print(
-            f"✗ ClearTrace error: {error}"
-        )
+        print(f"✗ ClearTrace error: {error}")
 
 
 def interactive_mode():

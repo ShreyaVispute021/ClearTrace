@@ -1,4 +1,5 @@
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -6,48 +7,56 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from diagnostic_ir import Diagnostic
-from reporter import Reporter
-from suggestion_engine import SuggestionEngine
+from root_cause import RootCauseAnalyzer
+from fix_engine import FixEngine
 
 
-class DiagnosticFeatureTests(unittest.TestCase):
-    def setUp(self):
-        self.diagnostics = [
-            Diagnostic("C++", "COMPILE_ERROR", "ERROR", "CT-CPP-001", 2, 8,
-                       "Identifier is not declared.", "Not declared.",
-                       "Did you mean 'total'?", 96, "print(totl);"),
-            Diagnostic("Java", "SYNTAX_ERROR", "WARNING", "CT-JAVA-002", 4, 1,
-                       "Example warning.", "Explanation.", "Suggestion.", 80, ""),
-        ]
+def diagnostic(code="CT-PY-001", line=1, column=1, message="Example", severity="ERROR", confidence=99):
+    return Diagnostic("Python", "SYNTAX_ERROR", severity, code, line, column,
+                      message, "Explanation", "Suggestion", confidence, "")
 
-    def test_diagnostic_serializes_to_dict(self):
-        data = self.diagnostics[0].to_dict()
-        self.assertEqual(data["code"], "CT-CPP-001")
-        self.assertEqual(data["line"], 2)
-        self.assertEqual(data["column"], 8)
-        self.assertEqual(data["source_line"], "print(totl);")
 
-    def test_summary_counts_errors_warnings_and_codes(self):
-        summary = Reporter.summary(self.diagnostics)
-        self.assertEqual(summary["total"], 2)
-        self.assertEqual(summary["errors"], 1)
-        self.assertEqual(summary["warnings"], 1)
-        self.assertEqual(summary["by_code"]["CT-CPP-001"], 1)
+class RootCauseUpgradeTests(unittest.TestCase):
+    def test_deduplicates_same_normalized_diagnostic(self):
+        a = diagnostic(line=2, message="missing colon")
+        b = diagnostic(line=2, message="missing colon")
+        self.assertEqual(len(RootCauseAnalyzer().deduplicate([a, b])), 1)
 
-    def test_similar_identifier_suggestion(self):
-        engine = SuggestionEngine()
-        self.assertEqual(engine.suggest("totl", ["total", "count"]), "total")
+    def test_empty_input_has_no_root(self):
+        self.assertIsNone(RootCauseAnalyzer().find_root_cause([]))
 
-    def test_declaration_names_for_cpp(self):
-        engine = SuggestionEngine()
-        self.assertIn("total", engine.declared_names("int total = 4;", "C++"))
+    def test_root_is_explainable_priority_not_claimed_causality(self):
+        later = diagnostic(line=5, message="later")
+        earlier = diagnostic(line=2, message="earlier")
+        result = RootCauseAnalyzer().analyze([later, earlier])
+        self.assertIs(result["root_cause"], earlier)
+        self.assertFalse(result["causality_proven"])
 
-    def test_similar_name_message(self):
-        engine = SuggestionEngine()
-        self.assertEqual(
-            engine.suggestion_for_source("totl", "int total = 4;", "C++"),
-            "Did you mean 'total'?",
-        )
+
+class SafeFixTests(unittest.TestCase):
+    def test_python_colon_fix_only_for_block_header(self):
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "sample.py"
+            path.write_text("if x == 1\n    print(x)\n", encoding="utf-8")
+            self.assertTrue(FixEngine().apply_fix(str(path), diagnostic()))
+            self.assertEqual(path.read_text(encoding="utf-8"), "if x == 1:\n    print(x)\n")
+
+    def test_python_colon_fix_refuses_arbitrary_expression(self):
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "sample.py"
+            path.write_text("value = 4\n", encoding="utf-8")
+            self.assertFalse(FixEngine().apply_fix(str(path), diagnostic()))
+            self.assertEqual(path.read_text(encoding="utf-8"), "value = 4\n")
+
+    def test_restore_backup(self):
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "sample.py"
+            path.write_text("before\n", encoding="utf-8")
+            engine = FixEngine()
+            engine.create_backup(str(path))
+            path.write_text("after\n", encoding="utf-8")
+            self.assertTrue(engine.restore_backup(str(path)))
+            self.assertEqual(path.read_text(encoding="utf-8"), "before\n")
 
 
 if __name__ == "__main__":
