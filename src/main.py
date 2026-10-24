@@ -45,51 +45,46 @@ def main():
             return
 
         if auto_fix:
+            eligible = [d for d in diagnostics if d.confidence >= 95]
+            if not eligible:
+                print("\\nNo diagnostics meet the automatic-fix confidence threshold.")
+                return
 
             print()
             print("==========================================")
             print("           AUTOMATIC FIX MODE")
             print("==========================================")
-
-            for diagnostic in diagnostics:
-
-                if diagnostic.confidence >= 95:
-
+            fixer.create_backup(filename)
+            applied = 0
+            try:
+                for diagnostic in eligible:
                     print()
-                    print(
-                        f"Applying fix for {diagnostic.code}..."
-                    )
-
-                    fixed = fixer.apply_fix(
-                        filename,
-                        diagnostic
-                    )
-
-                    if fixed:
-
-                        print("✓ Fix applied.")
-
+                    print(f"Proposing fix for {diagnostic.code} at line {diagnostic.line}...")
+                    if fixer.apply_fix(filename, diagnostic):
+                        applied += 1
+                        print("✓ Supported edit applied.")
                     else:
+                        print("⚠ No safe supported edit matched; skipped.")
 
-                        print("⚠ Fix could not be applied.")
+                if not applied:
+                    fixer.restore_backup(filename)
+                    print("\\nNo changes applied; original file preserved.")
+                    return
 
-            print()
-            print("Rechecking source...")
-
-            new_diagnostics = analyzer.analyze(filename)
-
-            if not new_diagnostics:
-
-                print("✓ All detected errors resolved.")
-
-            else:
-
-                print(
-                    f"⚠ {len(new_diagnostics)} "
-                    f"error(s) remain."
-                )
-
-                reporter.report(new_diagnostics)
+                print("\\nRechecking source with the native toolchain...")
+                new_diagnostics = analyzer.analyze(filename)
+                if not new_diagnostics:
+                    fixer.discard_backup(filename)
+                    print("✓ VERIFIED: native validation passed.")
+                    print("  This verifies syntax/validation, not runtime behavior.")
+                else:
+                    fixer.restore_backup(filename)
+                    print(f"✗ Verification failed ({len(new_diagnostics)} diagnostic(s) remain).")
+                    print("  Original source restored from backup.")
+                    reporter.report(new_diagnostics)
+            except Exception:
+                fixer.restore_backup(filename)
+                raise
 
         else:
 

@@ -49,6 +49,28 @@ class CppAdapter(LanguageAdapter):
             column = int(match.group(3))
             message_text = match.group(5)
 
+            # GCC often points at the *next* token (for example `return`)
+            # when a semicolon is missing at the end of the previous line.
+            # Normalize the location to the statement that needs the terminator.
+            semicolon_before_next_token = (
+                "expected ',' or ';' before" in message_text
+                or "expected ';' before" in message_text
+                or "expected ‘;’ before" in message_text
+                or "expected ‘,’ or ‘;’ before" in message_text
+            )
+            if semicolon_before_next_token and 1 < line <= len(lines):
+                previous = lines[line - 2].rstrip("\r\n")
+                current = lines[line - 1].strip()
+                previous_stripped = previous.strip()
+                if (
+                    previous_stripped
+                    and not previous_stripped.endswith((";", "{", "}", ":"))
+                    and not previous_stripped.startswith(("//", "/*", "*", "#"))
+                    and current
+                ):
+                    line -= 1
+                    column = len(previous.rstrip()) + 1
+
             # Keep the context belonging to this compiler diagnostic.
             end = (
                 matches[index + 1].start()
@@ -75,6 +97,7 @@ class CppAdapter(LanguageAdapter):
                 or "expected ',' or ';' before" in details
                 or "expected ';' before" in details
                 or "expected ‘;’" in details
+                or "expected ‘,’ or ‘;’" in details
             ):
                 message = "Missing semicolon."
                 explanation = (
@@ -83,6 +106,56 @@ class CppAdapter(LanguageAdapter):
                 )
                 suggestion = "Add ';' at the end of the statement."
                 confidence = 99
+
+            elif (
+                "expected ')' before" in details
+                or "expected ‘)’ before" in details
+                or "expected ‘)’" in details
+            ):
+                message = "Missing closing parenthesis."
+                explanation = (
+                    "An opening parenthesis '(' does not have a matching "
+                    "closing parenthesis ')'."
+                )
+                suggestion = "Add ')' at the appropriate position."
+                confidence = 94
+
+            elif (
+                "is not a member of ‘std’" in details
+                or "is not a member of 'std'" in details
+                or "is not a member of ‘std::" in details
+            ):
+                message = "Unknown or misspelled member."
+                explanation = (
+                    "The referenced name is not available in the specified "
+                    "namespace or type."
+                )
+                did_you_mean = re.search(
+                    r"did you mean [‘']([^’']+)[’']",
+                    details
+                )
+                suggestion = (
+                    f"Did you mean '{did_you_mean.group(1)}'?"
+                    if did_you_mean
+                    else "Check the spelling and required headers."
+                )
+                confidence = 94
+
+            elif (
+                "cannot convert" in details
+                or "invalid conversion" in details
+                or "incompatible types" in details
+            ):
+                message = "Type mismatch."
+                explanation = (
+                    "The value's type is not compatible with the type "
+                    "required by this expression or assignment."
+                )
+                suggestion = (
+                    "Check the declared types and convert or assign "
+                    "a compatible value."
+                )
+                confidence = 90
 
             elif "was not declared in this scope" in details:
                 message = "Identifier is not declared."

@@ -59,5 +59,43 @@ class SafeFixTests(unittest.TestCase):
             self.assertEqual(path.read_text(encoding="utf-8"), "before\n")
 
 
+class CppFixRegressionTests(unittest.TestCase):
+    def test_missing_semicolon_on_previous_statement_is_fixed(self):
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "sample.cpp"
+            path.write_text(
+                "#include <iostream>\n"
+                "int main() {\n"
+                "    int total = 100\n"
+                "    return 0;\n"
+                "}\n",
+                encoding="utf-8",
+            )
+            cpp_diagnostic = diagnostic(
+                code="CT-CPP-001",
+                line=3,
+                message="Missing semicolon.",
+            )
+            self.assertTrue(FixEngine().apply_fix(str(path), cpp_diagnostic))
+            self.assertIn("int total = 100;\n", path.read_text(encoding="utf-8"))
+
+    @unittest.skipUnless(__import__("shutil").which("g++"), "g++ is not installed")
+    def test_cpp_adapter_maps_missing_semicolon_to_previous_line(self):
+        from adapters.cpp_adapter import CppAdapter
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "sample.cpp"
+            path.write_text(
+                "int main() {\n"
+                "    int total = 100\n"
+                "    return 0;\n"
+                "}\n",
+                encoding="utf-8",
+            )
+            diagnostics = CppAdapter().analyze(str(path))
+            self.assertTrue(diagnostics)
+            self.assertEqual(diagnostics[0].line, 2)
+            self.assertEqual(diagnostics[0].message, "Missing semicolon.")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -43,6 +43,21 @@ class JavaAdapter(LanguageAdapter):
             with open(filename, "r", encoding="utf-8") as file:
                 lines = file.readlines()
 
+            # javac may place a missing-semicolon diagnostic on the next
+            # statement (commonly `return`). Prefer the preceding unterminated
+            # statement when the compiler explicitly says `';' expected`.
+            if "';' expected" in output and 1 < line <= len(lines):
+                previous = lines[line - 2].rstrip("\r\n")
+                current = lines[line - 1].strip()
+                previous_stripped = previous.strip()
+                if (
+                    previous_stripped
+                    and not previous_stripped.endswith((";", "{", "}", ":"))
+                    and not previous_stripped.startswith(("//", "/*", "*", "*", "@"))
+                    and current
+                ):
+                    line -= 1
+
             if 1 <= line <= len(lines):
                 source_line = lines[line - 1].rstrip()
 
@@ -61,6 +76,18 @@ class JavaAdapter(LanguageAdapter):
             suggestion = "Add ';' at the end of the statement."
 
             confidence = 99
+
+        elif "incompatible types:" in output:
+            message = "Type mismatch."
+            explanation = (
+                "The value's type is not compatible with the type "
+                "required by this assignment or expression."
+            )
+            suggestion = (
+                "Check the declared types and use a compatible value "
+                "or an appropriate conversion."
+            )
+            confidence = 90
 
         elif "cannot find symbol" in output:
 
